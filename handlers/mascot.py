@@ -29,6 +29,13 @@ async def generate_mascot(callback: CallbackQuery):
         # Загружаем базовый SVG
         svg_content = load_svg(MASCOT_SVG_TEMPLATE_PATH)
 
+        # Изменяем фон на оранжевый FDBA74
+        svg_content = re.sub(
+            r'<rect width="227" height="227" fill="white"/>',
+            r'<rect width="227" height="227" fill="#FDBA74"/>',
+            svg_content
+        )
+
         # Модифицируем цвета
         modified_svg, color_info = modify_svg_colors(svg_content)
 
