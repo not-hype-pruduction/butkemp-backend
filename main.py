@@ -134,7 +134,29 @@ async def cmd_reset(message: types.Message):
         reply_markup=get_main_keyboard(is_active)
     )
 
-    @dp.message()
+
+def get_yandex_gpt_response(messages):
+    """Получить ответ от Яндекс ГПТ с использованием SDK."""
+    try:
+        # Подготовка сообщений в формате для SDK
+        formatted_messages = []
+        for msg in messages:
+            formatted_messages.append({
+                'role': msg["role"],
+                'text': msg["text"]
+            })
+
+        # Выполнение запроса к модели
+        operation = model.run_deferred(formatted_messages)
+        result = operation.wait()
+        return result.text
+
+    except Exception as e:
+        logger.error(f"Ошибка при обращении к Яндекс ГПТ: {e}")
+        return "Извините, у меня возникли проблемы с получением ответа. Попробуйте еще раз позже."
+
+
+@dp.message()
 async def process_message(message: types.Message):
     """Обработка входящих сообщений."""
     user_id = message.from_user.id
@@ -179,12 +201,14 @@ async def process_message(message: types.Message):
     # Отправляем ответ пользователю
     await message.answer(response)
 
+
 async def main():
     """Запуск бота."""
     # Удаляем все обновления, которые могли накопиться
     await bot.delete_webhook(drop_pending_updates=True)
     # Запускаем бота в режиме long polling
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     import asyncio
