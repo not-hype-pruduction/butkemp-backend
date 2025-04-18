@@ -308,58 +308,73 @@ async def generate_test_result(message, user_id):
 professions = {}  # Выбранная профессия
 lectures = {}     # Выбранная лекция
 current_lecture = {}  # Текущая лекция
-
-# Словарь с профессиями и лекциями
+course_progress = {}  # хранит данные о текущей секции курса, ожидании ответа и т.д.
+user_answers = {}
 PROFESSIONS_LECTURES = {
     "doctor": {
         "name": "Врач",
         "lectures": {
             "vision": {
                 "title": "Дальтонизм",
-                "content": """**Курс «Профориентация в медицине: знакомство с дальтонизмом»**
+                "sections": [
+                    {
+                        "type": "theory",
+                        "content": """**Курс «Профориентация в медицине: знакомство с дальтонизмом»**
 
 Этот курс поможет тебе, старшекласснику, почувствовать себя начинающим врачом-офтальмологом и разобраться в том, что такое дальтонизм. Всё просто, весело и интерактивно, как в Duolingo: коротко теория — сразу практика — подсказка с ответом.
 
----
-
 ## 1. Введение: Ты — врач-стажёр 🩺
 
-Представь, что ты впервые приходишь в приёмную офтальмолога. У тебя белый халат, фонарик и планшет. Твоя задача — помочь людям правильно определять цвета и цифры на тестах, чтобы выявить дальтонизм. Готов? Поехали!
-
----
-
-## 2. Немного истории 📜
+Представь, что ты впервые приходишь в приёмную офтальмолога. У тебя белый халат, фонарик и планшет. Твоя задача — помочь людям правильно определять цвета и цифры на тестах, чтобы выявить дальтонизм. Готов? Поехали!"""
+                    },
+                    {
+                        "type": "theory",
+                        "content": """## 2. Немного истории 📜
 
 - **1794**: английский астроном Джон Дальтон первым описал свою неспособность видеть красный и зелёный цвета.
 - Он назвал это «цветовой слепотой», но вскоре термин сменился на «дальтонизм».
-- Сейчас мы знаем, что дальтонизм встречается у ~8% мужчин и ~0.5% женщин.
-
-*Практика 0.1:* Как ты думаешь, почему мужчинам дальтонизм встречается чаще?  
-A) Потому что они больше смотрят на компьютеры  
-B) Из‑за особенностей генов на X‑хромосоме  
-C) Потому что хуже питаются  
-
-**Подумай...** (ответ: B — мужской вариант описывается по‑другому, у женщин две X‑хромосомы.)
-
----
-
-## 3. Теория: что такое дальтонизм? 🧠
+- Сейчас мы знаем, что дальтонизм встречается у ~8% мужчин и ~0.5% женщин."""
+                    },
+                    {
+                        "type": "quiz",
+                        "question": "Как ты думаешь, почему мужчинам дальтонизм встречается чаще?",
+                        "options": [
+                            "A) Потому что они больше смотрят на компьютеры",
+                            "B) Из-за особенностей генов на X-хромосоме",
+                            "C) Потому что хуже питаются"
+                        ],
+                        "correct_answer": "B",
+                        "explanation": "Правильный ответ: B — Из-за особенностей генов на X-хромосоме. Мужчины имеют только одну X-хромосому, поэтому при наличии на ней дефектного гена дальтонизма это состояние проявится. У женщин две X-хромосомы, и для проявления дальтонизма дефект должен быть на обеих."
+                    },
+                    {
+                        "type": "theory",
+                        "content": """## 3. Теория: что такое дальтонизм? 🧠
 
 1. **Фоторецепторы в глазах**: колбочки отвечают за восприятие красного, зелёного и синего цвета.
 2. **При дальтонизме** одна из групп колбочек работает иначе или не работает совсем.
 3. **Типы дальтонизма**:
    - Протанопия (¬ красный)
    - Дейтеранопия (¬ зелёный)
-   - Тританопия (¬ синий)
-
-*Практика 1:* Ты врач, пациент не видит зелёных яблок на картинке. Какой тип дальтонизма можно предположить?
-
-A) Протанопия  
-B) Дейтеранопия  
-C) Тританопия  
-
-**Подсказка:** он не различает зелёный — значит проблемы с зелёными колбочками.  
-**Ответ: B — дейтеранопия.**"""
+   - Тританопия (¬ синий)"""
+                    },
+                    {
+                        "type": "quiz",
+                        "question": "Ты врач, пациент не видит зелёных яблок на картинке. Какой тип дальтонизма можно предположить?",
+                        "options": [
+                            "A) Протанопия",
+                            "B) Дейтеранопия",
+                            "C) Тританопия"
+                        ],
+                        "correct_answer": "B",
+                        "explanation": "Правильный ответ: B — дейтеранопия. При дейтеранопии нарушено восприятие зеленого цвета из-за дисфункции колбочек, отвечающих за восприятие зеленого спектра."
+                    },
+                    {
+                        "type": "open_question",
+                        "question": "Почему важно выявлять дальтонизм у детей школьного возраста?",
+                        "keywords": ["учеба", "обучение", "профессия", "безопасность", "адаптация", "помощь"],
+                        "explanation": "Раннее выявление дальтонизма важно для адаптации учебного процесса, профориентации (некоторые профессии недоступны при дальтонизме), а также для обеспечения безопасности ребенка (например, распознавание сигналов светофора)."
+                    }
+                ]
             },
             "anatomy": {
                 "title": "Анатомия и физиология",
@@ -435,21 +450,258 @@ def get_professions_keyboard():
 
 
 # Обработчик выбора профессии
+@dp.callback_query(lambda c: c.data and c.data.startswith("lecture_"))
+async def select_lecture(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    lecture_key = callback.data.split("_")[1]
+
+    if user_id not in professions:
+        await callback.message.answer(
+            "Пожалуйста, сначала выберите профессию.",
+            reply_markup=get_professions_keyboard()
+        )
+        await callback.answer("Нужно выбрать профессию")
+        return
+
+    # Сохраняем выбор лекции
+    lectures[user_id] = lecture_key
+    profession_key = professions[user_id]
+
+    # Запускаем первую секцию курса
+    await show_course_section(callback.message, user_id, profession_key, lecture_key, 0)
+    await callback.answer(f"Начинаем курс: {PROFESSIONS_LECTURES[profession_key]['lectures'][lecture_key]['title']}")
+
+
 @dp.callback_query(lambda c: c.data and c.data.startswith("profession_"))
 async def select_profession(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     profession_key = callback.data.split("_")[1]
 
-    # Сохраняем выбор пользователя
+    # Сохраняем выбор профессии
     professions[user_id] = profession_key
 
     await callback.message.answer(
         f"Вы выбрали профессию: *{PROFESSIONS_LECTURES[profession_key]['name']}*\n\n"
-        "Выберите интересующую вас лекцию:",
+        f"Выберите лекцию для изучения:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=get_lectures_keyboard(profession_key)
     )
     await callback.answer(f"Выбрана профессия: {PROFESSIONS_LECTURES[profession_key]['name']}")
+
+@dp.callback_query(lambda c: c.data == "back_to_main")
+async def back_to_main(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    is_active = psychologist_active.get(user_id, False)
+
+    # При возврате в главное меню сбрасываем прогресс текущего курса
+    if user_id in course_progress:
+        course_progress[user_id]["waiting_for_answer"] = False
+
+    await callback.message.answer(
+        "Вы вернулись в главное меню. Выберите действие:",
+        reply_markup=get_main_keyboard(is_active)
+    )
+    await callback.answer("Главное меню")
+
+
+async def show_course_section(message, user_id, profession_key, lecture_key, section_index=0):
+    # Проверка наличия профессии и лекции в словаре
+    if profession_key not in PROFESSIONS_LECTURES:
+        await message.answer("Ошибка: профессия не найдена.")
+        return
+
+    if lecture_key not in PROFESSIONS_LECTURES[profession_key]["lectures"]:
+        await message.answer("Ошибка: лекция не найдена.")
+        return
+
+    # Получаем информацию о курсе
+    lecture = PROFESSIONS_LECTURES[profession_key]["lectures"][lecture_key]
+
+    # Проверка формата лекции (новый со sections или старый с content)
+    if "sections" in lecture:
+        sections = lecture["sections"]
+
+        # Проверяем, находится ли индекс в диапазоне
+        if not sections or section_index < 0 or section_index >= len(sections):
+            await message.answer("Ошибка: секция не найдена.")
+            return
+
+        # Получаем текущую секцию
+        section = sections[section_index]
+        section_type = section.get("type", "theory")
+
+        # Сохраняем текущую позицию пользователя
+        course_progress[user_id] = {
+            "profession": profession_key,
+            "lecture": lecture_key,
+            "section": section_index,
+            "waiting_for_answer": False
+        }
+
+        # Создаем клавиатуру навигации
+        builder = InlineKeyboardBuilder()
+
+        # Если это не первая секция, добавляем кнопку "Назад"
+        if section_index > 0:
+            builder.add(types.InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=f"course_{profession_key}_{lecture_key}_{section_index - 1}"
+            ))
+
+        # Если это теория и не последняя секция, добавляем кнопку "Дальше"
+        if section_type == "theory" and section_index < len(sections) - 1:
+            builder.add(types.InlineKeyboardButton(
+                text="Дальше ➡️",
+                callback_data=f"course_{profession_key}_{lecture_key}_{section_index + 1}"
+            ))
+
+        # Добавляем кнопку к списку лекций
+        builder.add(types.InlineKeyboardButton(
+            text="🔙 К списку лекций",
+            callback_data=f"profession_{profession_key}"
+        ))
+
+        # Добавляем кнопку выхода в главное меню
+        builder.add(types.InlineKeyboardButton(
+            text="🏠 В главное меню",
+            callback_data="back_to_main"
+        ))
+
+        # Выравниваем кнопки по одной в строке
+        builder.adjust(1)
+
+        # Обработка в зависимости от типа секции
+        if section_type == "theory":
+            # Отправляем теоретический материал
+            await message.answer(
+                section["content"],
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=builder.as_markup()
+            )
+
+        elif section_type == "quiz":
+            # Создаем клавиатуру с вариантами ответов
+            options_builder = InlineKeyboardBuilder()
+
+            # Добавляем кнопки с вариантами ответов
+            for i, option in enumerate(section["options"]):
+                option_letter = chr(65 + i)  # A, B, C, D...
+                options_builder.add(types.InlineKeyboardButton(
+                    text=f"{option_letter}. {option}",
+                    callback_data=f"answer_{profession_key}_{lecture_key}_{section_index}_{option_letter}"
+                ))
+
+            # Добавляем кнопки навигации
+            options_builder.add(types.InlineKeyboardButton(
+                text="🔙 К списку лекций",
+                callback_data=f"profession_{profession_key}"
+            ))
+            options_builder.add(types.InlineKeyboardButton(
+                text="🏠 В главное меню",
+                callback_data="back_to_main"
+            ))
+
+            options_builder.adjust(1)  # По одной кнопке в ряду
+
+            await message.answer(
+                f"**Вопрос:**\n\n{section['question']}",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=options_builder.as_markup()
+            )
+
+        elif section_type == "open_question":
+            # Отмечаем, что ждем ответ на открытый вопрос
+            course_progress[user_id]["waiting_for_answer"] = True
+
+            # Отправляем открытый вопрос
+            await message.answer(
+                f"**Практика:**\n\n{section['question']}\n\nВведите ваш ответ в чат.",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=builder.as_markup()
+            )
+    else:
+        # Старый формат с единым контентом
+        await message.answer(
+            lecture["content"],
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=get_back_to_lectures_keyboard(profession_key)
+        )
+
+
+def get_back_to_lectures_keyboard(profession_key):
+    """Создает клавиатуру с кнопкой возврата к списку лекций."""
+    builder = InlineKeyboardBuilder()
+
+    builder.add(types.InlineKeyboardButton(
+        text="🔙 К списку лекций",
+        callback_data=f"profession_{profession_key}"
+    ))
+
+    builder.add(types.InlineKeyboardButton(
+        text="🏠 В главное меню",
+        callback_data="back_to_main"
+    ))
+
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+# Обработчик для навигации по секциям курса
+@dp.callback_query(lambda c: c.data and c.data.startswith("course_"))
+async def course_navigation(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    _, profession_key, lecture_key, section_index = callback.data.split("_")
+    section_index = int(section_index)
+
+    await show_course_section(callback.message, user_id, profession_key, lecture_key, section_index)
+    await callback.answer()
+
+
+# Обработчик для проверки ответов на вопросы с вариантами
+@dp.callback_query(lambda c: c.data and c.data.startswith("answer_"))
+async def check_answer(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    _, profession_key, lecture_key, section_index, user_answer = callback.data.split("_")
+    section_index = int(section_index)
+
+    # Получаем информацию о секции
+    section = PROFESSIONS_LECTURES[profession_key]["lectures"][lecture_key]["sections"][section_index]
+    correct_answer = section["correct_answer"]
+    explanation = section["explanation"]
+
+    # Проверяем ответ
+    if user_answer == correct_answer:
+        result_message = "✅ Правильно! " + explanation
+    else:
+        result_message = f"❌ Неверно. {explanation}"
+
+    # Создаем клавиатуру для перехода к следующей секции
+    builder = InlineKeyboardBuilder()
+
+    # Если есть следующая секция, добавляем кнопку перехода
+    if section_index < len(PROFESSIONS_LECTURES[profession_key]["lectures"][lecture_key]["sections"]) - 1:
+        builder.add(types.InlineKeyboardButton(
+            text="Следующий шаг ➡️",
+            callback_data=f"course_{profession_key}_{lecture_key}_{section_index + 1}"
+        ))
+
+    # Добавляем кнопки навигации
+    builder.add(types.InlineKeyboardButton(
+        text="🔄 К списку лекций",
+        callback_data=f"profession_{profession_key}"
+    ))
+    builder.add(types.InlineKeyboardButton(
+        text="⬅️ В главное меню",
+        callback_data="back_to_main"
+    ))
+    builder.adjust(1)
+
+    await callback.message.answer(
+        result_message,
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=builder.as_markup()
+    )
+    await callback.answer()
 
 
 # Клавиатура для выбора лекции
@@ -470,66 +722,6 @@ def get_lectures_keyboard(profession_key):
 
     builder.adjust(1)
     return builder.as_markup()
-
-
-# Обработчик выбора лекции
-@dp.callback_query(lambda c: c.data and c.data.startswith("lecture_"))
-async def select_lecture(callback: types.CallbackQuery):
-    user_id = callback.from_user.id
-    lecture_key = callback.data.split("_")[1]
-
-    if user_id not in professions:
-        await callback.message.answer(
-            "Пожалуйста, сначала выберите профессию.",
-            reply_markup=get_professions_keyboard()
-        )
-        await callback.answer("Нужно выбрать профессию")
-        return
-
-    # Сохраняем выбор лекции
-    lectures[user_id] = lecture_key
-    profession_key = professions[user_id]
-
-    # Получаем содержание лекции из предопределенных данных
-    try:
-        lecture_content = PROFESSIONS_LECTURES[profession_key]["lectures"][lecture_key]["content"]
-        lecture_title = PROFESSIONS_LECTURES[profession_key]["lectures"][lecture_key]["title"]
-
-        # Сохраняем лекцию для пользователя
-        current_lecture[user_id] = lecture_content
-
-        # Создаем клавиатуру для действий с лекцией
-        builder = InlineKeyboardBuilder()
-        builder.add(types.InlineKeyboardButton(
-            text="🔄 Другая лекция",
-            callback_data=f"profession_{profession_key}"
-        ))
-        builder.add(types.InlineKeyboardButton(
-            text="🎓 Другая профессия",
-            callback_data="career_guidance"
-        ))
-        builder.add(types.InlineKeyboardButton(
-            text="⬅️ В главное меню",
-            callback_data="back_to_main"
-        ))
-        builder.adjust(1)
-
-        # Отправляем заголовок и содержание лекции
-        await callback.message.answer(
-            f"**{lecture_title}**\n\n{lecture_content}",
-            parse_mode=ParseMode.MARKDOWN,
-            reply_markup=builder.as_markup()
-        )
-
-    except KeyError as e:
-        logger.error(f"Ошибка при получении лекции: {e}")
-        await callback.message.answer(
-            "Извините, данная лекция пока недоступна. Пожалуйста, выберите другую.",
-            reply_markup=get_lectures_keyboard(profession_key)
-        )
-
-    await callback.answer("Лекция загружена")
-
 
 
 # Добавляем обработчик для кнопки с рецептом блинов
@@ -670,7 +862,73 @@ async def process_message(message: types.Message):
     user_id = message.from_user.id
     user_message = message.text
 
-    # В функции process_message
+    # Проверяем, ожидаем ли мы ответ на открытый вопрос
+    if user_id in course_progress and course_progress[user_id].get("waiting_for_answer", False):
+        # Получаем информацию о текущем вопросе
+        prof_key = course_progress[user_id]["profession"]
+        lect_key = course_progress[user_id]["lecture"]
+        section_idx = course_progress[user_id]["section"]
+
+        # Получаем секцию с вопросом
+        section = PROFESSIONS_LECTURES[prof_key]["lectures"][lect_key]["sections"][section_idx]
+
+        # Проверяем наличие ключевых слов в ответе
+        keywords = section["keywords"]
+        found_keywords = [word for word in keywords if word.lower() in user_message.lower()]
+
+        # Определяем качество ответа
+        if found_keywords:
+            feedback = f"✅ Хороший ответ! Вы упомянули важные аспекты: {', '.join(found_keywords)}.\n\n"
+        else:
+            feedback = "🤔 Интересный ответ, но вот важные моменты, которые стоило бы учесть:\n\n"
+
+        # Добавляем объяснение
+        feedback += section["explanation"]
+
+        # Обновляем состояние пользователя
+        course_progress[user_id]["waiting_for_answer"] = False
+
+        # Создаем клавиатуру для перехода к следующей секции
+        builder = InlineKeyboardBuilder()
+
+        # Если есть следующая секция, добавляем кнопку перехода
+        if section_idx < len(PROFESSIONS_LECTURES[prof_key]["lectures"][lect_key]["sections"]) - 1:
+            builder.add(types.InlineKeyboardButton(
+                text="Следующий шаг ➡️",
+                callback_data=f"course_{prof_key}_{lect_key}_{section_idx + 1}"
+            ))
+
+        # Добавляем кнопки навигации
+        builder.add(types.InlineKeyboardButton(
+            text="🔄 К списку лекций",
+            callback_data=f"profession_{prof_key}"
+        ))
+        builder.add(types.InlineKeyboardButton(
+            text="⬅️ В главное меню",
+            callback_data="back_to_main"
+        ))
+        builder.adjust(1)
+
+        await message.answer(
+            feedback,
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=builder.as_markup()
+        )
+        return
+
+    # Если пользователь проходит тест и ответил на вопрос
+    if user_id in test_state and 0 <= test_state[user_id] < len(CAREER_TEST_QUESTIONS):
+        # Сохраняем ответ
+        test_answers[user_id].append(user_message)
+
+        # Переходим к следующему вопросу
+        test_state[user_id] += 1
+
+        # Отправляем следующий вопрос или результат
+        await send_test_question(message, user_id)
+        return
+
+    # Если режим психолога не активен для пользователя, показываем клавиатуру
     if user_id not in psychologist_active or not psychologist_active[user_id]:
         await message.answer(
             "Для общения с карьерным ассистентом сначала активируйте этот режим",
@@ -678,15 +936,16 @@ async def process_message(message: types.Message):
         )
         return
 
+    # Обработка для режима психолога/карьерного ассистента
     # Инициализируем сессию, если это первое сообщение
     if user_id not in user_sessions:
         user_sessions[user_id] = []
 
-    # Добавляем системное сообщение, если это первое сообщение
+    # Добавляем системное сообщение, если история пуста
     if not user_sessions[user_id]:
         user_sessions[user_id].append({
             "role": "system",
-            "text": "Ты психолог для школьников и студентов. Твоя задача - поддерживать диалог, проявлять эмпатию и помогать с проблемами, связанными с учебой: стрессом от экзаменов, выбором университета, сложностями в учебе, проблемами с концентрацией, тревогой перед ОГЭ/ЕГЭ. Объясняй свои рекомендации понятно, давай практичные советы. Будь дружелюбным и мотивирующим."
+            "text": "Ты карьерный консультант для школьников и студентов. Твоя задача - помогать с выбором профессии, образования и карьерного пути. Отвечай на вопросы о требованиях к разным профессиям, необходимых навыках, возможностях трудоустройства и перспективах в различных отраслях. Давай практичные советы по развитию карьеры и выбору образования. Будь информативным, объективным и мотивирующим."
         })
 
     # Добавляем сообщение пользователя
@@ -708,8 +967,6 @@ async def process_message(message: types.Message):
 
     # Отправляем ответ пользователю
     await message.answer(response)
-
-
 async def main():
     """Запуск бота."""
     # Удаляем все обновления, которые могли накопиться
