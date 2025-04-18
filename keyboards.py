@@ -37,6 +37,12 @@ def get_main_keyboard(is_career_assistant_active=False):
         callback_data="career_test"
     ))
 
+    # Добавляем кнопку для генерации маскота
+    builder.add(types.InlineKeyboardButton(
+        text="🎮 Выбить блина",
+        callback_data="get_mascot"
+    ))
+
     # Выравниваем кнопки по 1 в ряду
     builder.adjust(1)
     return builder.as_markup()

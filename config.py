@@ -9,6 +9,7 @@ load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TG_TOKEN")
 YANDEX_GPT_API_KEY = os.getenv("YANDEX_API_KEY")
 YANDEX_GPT_FOLDER_ID = os.getenv("YANDEX_FOLDER_ID")
+MASCOT_SVG_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "assets", "mascot-template.svg")
 
 # Настройка параметров для модели
 GPT_MODEL_PARAMS = {

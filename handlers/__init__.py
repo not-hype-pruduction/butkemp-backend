@@ -5,6 +5,7 @@ def register_all_handlers(dp):
     from handlers.career_test import register_handlers as register_test
     from handlers.career_guidance import register_handlers as register_guidance
     from handlers.recipe import register_handlers as register_recipe
+    from .mascot import register_handlers as register_mascot_handlers
 
     # Регистрация обработчиков
     register_common(dp)
@@ -12,3 +13,4 @@ def register_all_handlers(dp):
     register_test(dp)
     register_guidance(dp)
     register_recipe(dp)
+    register_mascot_handlers(dp)

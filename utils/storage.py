@@ -7,3 +7,4 @@ current_lecture = {}  # Текущая лекция
 course_progress = {}  # Прогресс курса
 test_state = {}  # Состояние теста
 test_answers = {}  # Ответы теста
+user_mascots = {}  # Коллекция маскотов пользователей

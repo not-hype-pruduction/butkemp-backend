@@ -224,7 +224,7 @@ def modify_svg_colors(svg_content):
 
 
 def replace_hat(svg_content, hat_rarity=None):
-    """Заменяет шапку на новую с учетом редкости и специфическими цветами"""
+    """Заменяет шапку на новую с учетом редкости и смещением по вертикали"""
     if hat_rarity is None:
         hat_rarity = select_by_rarity()
 
@@ -234,23 +234,36 @@ def replace_hat(svg_content, hat_rarity=None):
 
     # Выбираем цвет шапки соответствующий её типу и редкости
     hat_color = random.choice(HAT_COLORS[hat_name][hat_rarity])
-    hat_stroke_color = "#AAAAAA"  # Немного темнее для контура шапки
+    hat_stroke_color = "#AAAAAA"
 
-    # Ищем и заменяем части SVG отвечающие за шапку с новыми цветами
+    # Добавляем смещение по вертикали в зависимости от типа шапки
+    y_offset = {
+        "Классическая шапка": 0,
+        "Простая кепка": -5,
+        "Шляпа с полями": 10,
+        "Шапка с помпоном": 10,
+        "Ковбойская шляпа": 15,
+        "Цилиндр": 5,
+        "Корона": 10,
+        "Шлем рыцаря": 5,
+        "Волшебная шляпа": 15,
+        "Космический шлем": 15
+    }.get(hat_name, 0)
+
+    # Применяем смещение к SVG с помощью группы и трансформации
+    hat_group = f'<g transform="translate(0, {y_offset})">'
+    hat_paths = f'<path d="{hat_variant["path1"]}" fill="{hat_color}" stroke="{hat_stroke_color}" stroke-width="3"/>'
+    hat_paths += f'<path d="{hat_variant["path2"]}" fill="{hat_color}" stroke="{hat_stroke_color}" stroke-width="3"/>'
+    hat_group += hat_paths + '</g>'
+
+    # Заменяем старые пути шапки на новую группу с трансформацией
     modified_svg = re.sub(
-        r'<path d="M113.5 84C90.8 84 79.45 102 79.45 114H147.55C147.55 102 136.2 84 113.5 84Z"[^/]+/>',
-        f'<path d="{hat_variant["path1"]}" fill="{hat_color}" stroke="{hat_stroke_color}" stroke-width="3"/>',
+        r'<path d="M113.5 84C90.8 84 79.45 102 79.45 114H147.55C147.55 102 136.2 84 113.5 84Z"[^/]+/>\s*<path d="M141.875 108H85.125C81.9907 108[^/]+/>',
+        hat_group,
         svg_content
     )
 
-    modified_svg = re.sub(
-        r'<path d="M141.875 108H85.125C81.9907 108[^/]+/>',
-        f'<path d="{hat_variant["path2"]}" fill="{hat_color}" stroke="{hat_stroke_color}" stroke-width="3"/>',
-        modified_svg
-    )
-
     return modified_svg, {"name": hat_name, "rarity": hat_rarity, "color": hat_color}
-
 
 def generate_mascot_variations(input_svg_path, output_dir, count=5):
     """Генерирует несколько вариаций маскота с учетом редкости элементов"""
