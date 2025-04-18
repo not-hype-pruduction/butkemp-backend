@@ -73,6 +73,68 @@ async def cmd_start(message: types.Message):
     )
 
 
+# Функция для создания клавиатуры
+def get_main_keyboard(is_psychologist_active=False):
+    builder = InlineKeyboardBuilder()
+
+    if is_psychologist_active:
+        builder.add(types.InlineKeyboardButton(
+            text="🛑 Выключить психолога",
+            callback_data="stop_psychologist"
+        ))
+    else:
+        builder.add(types.InlineKeyboardButton(
+            text="🧠 Режим психолога",
+            callback_data="start_psychologist"
+        ))
+
+    # Добавляем кнопку для получения рецепта блинов
+    builder.add(types.InlineKeyboardButton(
+        text="🥞 Получить рецепт блинов",
+        callback_data="pancake_recipe"
+    ))
+
+    # Выравниваем кнопки по 1 в ряду
+    builder.adjust(1)
+
+    return builder.as_markup()
+
+
+# Добавляем обработчик для кнопки с рецептом блинов
+@dp.callback_query(lambda c: c.data == "pancake_recipe")
+async def get_pancake_recipe(callback: types.CallbackQuery):
+    """Отправляет рецепт блинов"""
+    user_id = callback.from_user.id
+    is_active = psychologist_active.get(user_id, False)
+
+    recipe = (
+        "🥞 *Классический рецепт блинов* 🥞\n\n"
+        "*Ингредиенты:*\n"
+        "• 500 мл молока\n"
+        "• 2 яйца\n"
+        "• 250 г муки\n"
+        "• 2 ст. ложки сахара\n"
+        "• Щепотка соли\n"
+        "• 2 ст. ложки растительного масла\n\n"
+
+        "*Приготовление:*\n"
+        "1. Взбейте яйца с сахаром и солью\n"
+        "2. Добавьте половину молока и перемешайте\n"
+        "3. Постепенно добавляйте муку, перемешивая до однородности\n"
+        "4. Влейте оставшееся молоко и масло, тщательно перемешайте\n"
+        "5. Оставьте тесто на 20-30 минут\n"
+        "6. Обжаривайте блины на разогретой сковороде с двух сторон\n\n"
+
+        "Приятного аппетита! 😋"
+    )
+
+    await callback.message.answer(
+        recipe,
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=get_main_keyboard(is_active)
+    )
+    await callback.answer("Вот ваш рецепт блинов!")
+
 @dp.callback_query(lambda c: c.data == "start_psychologist")
 async def start_psychologist(callback: types.CallbackQuery):
     """Активация режима психолога"""
