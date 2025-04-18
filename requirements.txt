@@ -44,3 +44,4 @@ wrapt==1.17.2
 yandex-cloud-ml-sdk==0.9.0
 yandexcloud==0.340.0
 yarl==1.20.0
+cairosvg==2.7.1
