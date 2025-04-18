@@ -40,18 +40,24 @@ model.configure(
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 
+
 # Функция для создания клавиатуры
-def get_main_keyboard():
+def get_main_keyboard(is_psychologist_active=False):
     builder = InlineKeyboardBuilder()
-    builder.add(types.InlineKeyboardButton(
-        text="🧠 Режим психолога",
-        callback_data="start_psychologist"
-    ))
-    builder.add(types.InlineKeyboardButton(
-        text="🛑 Выключить психолога",
-        callback_data="stop_psychologist"
-    ))
+
+    if is_psychologist_active:
+        builder.add(types.InlineKeyboardButton(
+            text="🛑 Выключить психолога",
+            callback_data="stop_psychologist"
+        ))
+    else:
+        builder.add(types.InlineKeyboardButton(
+            text="🧠 Режим психолога",
+            callback_data="start_psychologist"
+        ))
+
     return builder.as_markup()
+
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
@@ -63,8 +69,9 @@ async def cmd_start(message: types.Message):
     await message.answer(
         "Привет! Я твой ассистент.\n"
         "Одна из моих функций - режим психолога. Нажми на кнопку, чтобы активировать его.",
-        reply_markup=get_main_keyboard()
+        reply_markup=get_main_keyboard(False)
     )
+
 
 @dp.callback_query(lambda c: c.data == "start_psychologist")
 async def start_psychologist(callback: types.CallbackQuery):
@@ -78,9 +85,11 @@ async def start_psychologist(callback: types.CallbackQuery):
     await callback.message.answer(
         "Режим психолога активирован! 🧠\n"
         "Я готов помочь тебе с проблемами в учебе, подготовкой к экзаменам, выбором вуза и другими школьными вопросами.\n"
-        "Расскажи, что тебя беспокоит?"
+        "Расскажи, что тебя беспокоит?",
+        reply_markup=get_main_keyboard(True)
     )
     await callback.answer("Режим психолога активирован!")
+
 
 @dp.callback_query(lambda c: c.data == "stop_psychologist")
 async def stop_psychologist(callback: types.CallbackQuery):
@@ -90,13 +99,16 @@ async def stop_psychologist(callback: types.CallbackQuery):
 
     await callback.message.answer(
         "Режим психолога отключен. Вернулись в основное меню.",
-        reply_markup=get_main_keyboard()
+        reply_markup=get_main_keyboard(False)
     )
     await callback.answer("Режим психолога отключен")
 
+
 @dp.message(Command("help"))
 async def cmd_help(message: types.Message):
-    """Обработка команды /help."""
+    user_id = message.from_user.id
+    is_active = psychologist_active.get(user_id, False)
+
     await message.answer(
         "Я твой ассистент!\n"
         "Одна из моих функций - режим психолога.\n"
@@ -106,37 +118,23 @@ async def cmd_help(message: types.Message):
         "• С выбором вуза и специальности\n"
         "• С проблемами в школе\n\n"
         "Используй /reset чтобы сбросить историю разговора.",
-        reply_markup=get_main_keyboard()
+        reply_markup=get_main_keyboard(is_active)
     )
+
 
 @dp.message(Command("reset"))
 async def cmd_reset(message: types.Message):
     """Сбросить историю диалога."""
     user_id = message.from_user.id
     user_sessions[user_id] = []
-    await message.answer("История разговора сброшена.", reply_markup=get_main_keyboard())
+    is_active = psychologist_active.get(user_id, False)
 
-def get_yandex_gpt_response(messages):
-    """Получить ответ от Яндекс ГПТ с использованием SDK."""
-    try:
-        # Подготовка сообщений в формате для SDK
-        formatted_messages = []
-        for msg in messages:
-            formatted_messages.append({
-                'role': msg["role"],
-                'text': msg["text"]
-            })
+    await message.answer(
+        "История разговора сброшена.",
+        reply_markup=get_main_keyboard(is_active)
+    )
 
-        # Выполнение запроса к модели
-        operation = model.run_deferred(formatted_messages)
-        result = operation.wait()
-        return result.text
-
-    except Exception as e:
-        logger.error(f"Ошибка при обращении к Яндекс ГПТ: {e}")
-        return "Извините, у меня возникли проблемы с получением ответа. Попробуйте еще раз позже."
-
-@dp.message()
+    @dp.message()
 async def process_message(message: types.Message):
     """Обработка входящих сообщений."""
     user_id = message.from_user.id
@@ -146,7 +144,7 @@ async def process_message(message: types.Message):
     if user_id not in psychologist_active or not psychologist_active[user_id]:
         await message.answer(
             "Для общения с психологом сначала активируйте этот режим",
-            reply_markup=get_main_keyboard()
+            reply_markup=get_main_keyboard(False)
         )
         return
 
