@@ -1,4 +1,6 @@
-from aiogram import Router, F
+import types
+
+from aiogram import Router, F, types
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
@@ -28,8 +30,8 @@ async def send_pancake_recipe(callback: CallbackQuery):
 
     # Создаем кнопку для возврата в меню
     builder = InlineKeyboardBuilder()
-    builder.add(F.text("⬅️ Назад в меню", callback_data="back_to_menu"))
-    builder.add(F.text("🔄 Другой рецепт", callback_data="pancake_recipe"))
+    builder.add(types.InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="back_to_menu"))
+    builder.add(types.InlineKeyboardButton(text="🔄 Другой рецепт", callback_data="pancake_recipe"))
     builder.adjust(1)
 
     await callback.message.answer(
