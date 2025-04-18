@@ -3,6 +3,7 @@ import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters.command import Command
 from aiogram.enums.parse_mode import ParseMode
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from yandex_cloud_ml_sdk import YCloudML
 from dotenv import load_dotenv
 
@@ -20,8 +21,9 @@ TELEGRAM_TOKEN = os.getenv("TG_TOKEN")
 YANDEX_GPT_API_KEY = os.getenv("YANDEX_API_KEY")
 YANDEX_GPT_FOLDER_ID = os.getenv("YANDEX_FOLDER_ID")
 
-# История сообщений для контекста беседы
+# История сообщений и статус бота-психолога для каждого пользователя
 user_sessions = {}
+psychologist_active = {}  # Словарь для отслеживания активности режима психолога
 
 # Создание клиента для работы с Яндекс ГПТ
 sdk = YCloudML(
@@ -39,25 +41,71 @@ bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 
 
+# Функция для создания клавиатуры
+def get_main_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.add(types.InlineKeyboardButton(
+        text="🧠 Запустить психолога",
+        callback_data="start_psychologist"
+    ))
+    builder.add(types.InlineKeyboardButton(
+        text="🛑 Остановить психолога",
+        callback_data="stop_psychologist"
+    ))
+    return builder.as_markup()
+
+
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     """Обработка команды /start."""
     user_id = message.from_user.id
     user_sessions[user_id] = []
+    psychologist_active[user_id] = False
 
     await message.answer(
-        "Привет! Я бот-психолог, готовый выслушать тебя и помочь. "
-        "Расскажи мне, что тебя беспокоит?"
+        "Привет! Я многофункциональный бот.\n"
+        "Нажмите на кнопку, чтобы запустить режим психолога.",
+        reply_markup=get_main_keyboard()
     )
+
+
+@dp.callback_query(lambda c: c.data == "start_psychologist")
+async def start_psychologist(callback: types.CallbackQuery):
+    """Активация режима психолога"""
+    user_id = callback.from_user.id
+    psychologist_active[user_id] = True
+
+    if user_id not in user_sessions:
+        user_sessions[user_id] = []
+
+    await callback.message.answer(
+        "Режим психолога активирован. Расскажите, что вас беспокоит?"
+    )
+    await callback.answer("Психолог готов к общению")
+
+
+@dp.callback_query(lambda c: c.data == "stop_psychologist")
+async def stop_psychologist(callback: types.CallbackQuery):
+    """Деактивация режима психолога"""
+    user_id = callback.from_user.id
+    psychologist_active[user_id] = False
+
+    await callback.message.answer(
+        "Режим психолога отключен. Вы вернулись в основное меню.",
+        reply_markup=get_main_keyboard()
+    )
+    await callback.answer("Психолог отключен")
 
 
 @dp.message(Command("help"))
 async def cmd_help(message: types.Message):
     """Обработка команды /help."""
     await message.answer(
-        "Я бот-психолог, созданный для поддержки и помощи. "
-        "Просто напиши мне о своих чувствах, проблемах или ситуациях, "
-        "и я постараюсь помочь. Используй /reset чтобы начать разговор заново."
+        "Я многофункциональный бот.\n"
+        "Для активации режима психолога нажмите соответствующую кнопку.\n"
+        "В режиме психолога я могу помочь вам с эмоциональной поддержкой.\n"
+        "Используйте /reset чтобы сбросить историю разговора.",
+        reply_markup=get_main_keyboard()
     )
 
 
@@ -66,7 +114,7 @@ async def cmd_reset(message: types.Message):
     """Сбросить историю диалога."""
     user_id = message.from_user.id
     user_sessions[user_id] = []
-    await message.answer("История разговора сброшена. Начнем заново?")
+    await message.answer("История разговора сброшена.", reply_markup=get_main_keyboard())
 
 
 def get_yandex_gpt_response(messages):
@@ -95,6 +143,14 @@ async def process_message(message: types.Message):
     """Обработка входящих сообщений."""
     user_id = message.from_user.id
     user_message = message.text
+
+    # Если режим психолога не активен для пользователя, показываем клавиатуру
+    if user_id not in psychologist_active or not psychologist_active[user_id]:
+        await message.answer(
+            "Для общения с психологом сначала активируйте этот режим",
+            reply_markup=get_main_keyboard()
+        )
+        return
 
     # Инициализируем сессию, если это первое сообщение
     if user_id not in user_sessions:
