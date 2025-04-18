@@ -94,10 +94,10 @@ def get_main_keyboard(is_psychologist_active=False):
         callback_data="pancake_recipe"
     ))
 
-    # Добавляем кнопку режима задач
+    # Добавляем кнопку режима профориентации
     builder.add(types.InlineKeyboardButton(
-        text="📚 Учебные задачи",
-        callback_data="problems_mode"
+        text="🎓 Профориентация",
+        callback_data="career_guidance"
     ))
 
     # Выравниваем кнопки по 1 в ряду
@@ -106,66 +106,66 @@ def get_main_keyboard(is_psychologist_active=False):
     return builder.as_markup()
 
 
-# Словари для хранения состояний пользователей в режиме задач
-subjects = {}  # Выбранный предмет
-topics = {}  # Выбранная тема
-current_problem = {}  # Текущая задача
+# Словари для хранения состояний пользователей в режиме профориентации
+professions = {}  # Выбранная профессия
+lectures = {}     # Выбранная лекция
+current_lecture = {}  # Текущая лекция
 
-# Предметы и темы для задач
-SUBJECTS_TOPICS = {
-    "math": {
-        "name": "Математика",
-        "topics": {
-            "algebra": "Алгебра",
-            "geometry": "Геометрия",
-            "trigonometry": "Тригонометрия",
-            "probability": "Теория вероятностей"
+# Профессии и лекции
+PROFESSIONS_LECTURES = {
+    "programmer": {
+        "name": "Программист",
+        "lectures": {
+            "basics": "Основы программирования",
+            "web": "Веб-разработка",
+            "mobile": "Разработка мобильных приложений",
+            "ai": "Искусственный интеллект"
         }
     },
-    "physics": {
-        "name": "Физика",
-        "topics": {
-            "mechanics": "Механика",
-            "electricity": "Электричество",
-            "optics": "Оптика",
-            "thermodynamics": "Термодинамика"
+    "doctor": {
+        "name": "Врач",
+        "lectures": {
+            "anatomy": "Анатомия и физиология",
+            "diagnosis": "Диагностика заболеваний",
+            "treatment": "Методы лечения",
+            "emergency": "Неотложная помощь"
         }
     },
-    "chemistry": {
-        "name": "Химия",
-        "topics": {
-            "organic": "Органическая химия",
-            "inorganic": "Неорганическая химия",
-            "solutions": "Растворы",
-            "reactions": "Химические реакции"
+    "designer": {
+        "name": "Дизайнер",
+        "lectures": {
+            "graphics": "Графический дизайн",
+            "ui": "UI/UX дизайн",
+            "3d": "3D моделирование",
+            "animation": "Анимация"
         }
     }
 }
 
 
-# Обработчик для режима задач
-@dp.callback_query(lambda c: c.data == "problems_mode")
-async def problems_mode(callback: types.CallbackQuery):
-    """Запуск режима с учебными задачами"""
+# Обработчик для режима профориентации
+@dp.callback_query(lambda c: c.data == "career_guidance")
+async def career_guidance_mode(callback: types.CallbackQuery):
+    """Запуск режима профориентации"""
     user_id = callback.from_user.id
 
     await callback.message.answer(
-        "📚 *Режим учебных задач*\n\n"
-        "Выберите предмет, по которому хотите получить задачу:",
+        "🎓 *Режим профориентации*\n\n"
+        "Выберите профессию, о которой хотите узнать больше:",
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=get_subjects_keyboard()
+        reply_markup=get_professions_keyboard()
     )
-    await callback.answer("Выберите предмет")
+    await callback.answer("Выберите профессию")
 
 
-# Клавиатура для выбора предмета
-def get_subjects_keyboard():
+# Клавиатура для выбора профессии
+def get_professions_keyboard():
     builder = InlineKeyboardBuilder()
 
-    for subj_key, subj_data in SUBJECTS_TOPICS.items():
+    for prof_key, prof_data in PROFESSIONS_LECTURES.items():
         builder.add(types.InlineKeyboardButton(
-            text=subj_data["name"],
-            callback_data=f"subject_{subj_key}"
+            text=prof_data["name"],
+            callback_data=f"profession_{prof_key}"
         ))
 
     # Кнопка возврата в главное меню
@@ -178,75 +178,74 @@ def get_subjects_keyboard():
     return builder.as_markup()
 
 
-# Обработчик выбора предмета
-@dp.callback_query(lambda c: c.data and c.data.startswith("subject_"))
-async def select_subject(callback: types.CallbackQuery):
+# Обработчик выбора профессии
+@dp.callback_query(lambda c: c.data and c.data.startswith("profession_"))
+async def select_profession(callback: types.CallbackQuery):
     user_id = callback.from_user.id
-    subject_key = callback.data.split("_")[1]
+    profession_key = callback.data.split("_")[1]
 
     # Сохраняем выбор пользователя
-    subjects[user_id] = subject_key
+    professions[user_id] = profession_key
 
     await callback.message.answer(
-        f"Вы выбрали предмет: *{SUBJECTS_TOPICS[subject_key]['name']}*\n\n"
-        "Теперь выберите тему:",
+        f"Вы выбрали профессию: *{PROFESSIONS_LECTURES[profession_key]['name']}*\n\n"
+        "Выберите интересующую вас лекцию:",
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=get_topics_keyboard(subject_key)
+        reply_markup=get_lectures_keyboard(profession_key)
     )
-    await callback.answer(f"Выбран предмет: {SUBJECTS_TOPICS[subject_key]['name']}")
+    await callback.answer(f"Выбрана профессия: {PROFESSIONS_LECTURES[profession_key]['name']}")
 
 
-# Клавиатура для выбора темы
-def get_topics_keyboard(subject_key):
+# Клавиатура для выбора лекции
+def get_lectures_keyboard(profession_key):
     builder = InlineKeyboardBuilder()
 
-    for topic_key, topic_name in SUBJECTS_TOPICS[subject_key]["topics"].items():
+    for lecture_key, lecture_name in PROFESSIONS_LECTURES[profession_key]["lectures"].items():
         builder.add(types.InlineKeyboardButton(
-            text=topic_name,
-            callback_data=f"topic_{topic_key}"
+            text=lecture_name,
+            callback_data=f"lecture_{lecture_key}"
         ))
 
-    # Кнопка возврата к выбору предмета
+    # Кнопка возврата к выбору профессии
     builder.add(types.InlineKeyboardButton(
-        text="⬅️ Назад к предметам",
-        callback_data="problems_mode"
+        text="⬅️ Назад к списку профессий",
+        callback_data="career_guidance"
     ))
 
     builder.adjust(1)
     return builder.as_markup()
 
 
-# Обработчик выбора темы
-@dp.callback_query(lambda c: c.data and c.data.startswith("topic_"))
-async def select_topic(callback: types.CallbackQuery):
+# Обработчик выбора лекции
+@dp.callback_query(lambda c: c.data and c.data.startswith("lecture_"))
+async def select_lecture(callback: types.CallbackQuery):
     user_id = callback.from_user.id
-    topic_key = callback.data.split("_")[1]
+    lecture_key = callback.data.split("_")[1]
 
-    if user_id not in subjects:
-        # Если по какой-то причине предмет не выбран
+    if user_id not in professions:
         await callback.message.answer(
-            "Пожалуйста, сначала выберите предмет.",
-            reply_markup=get_subjects_keyboard()
+            "Пожалуйста, сначала выберите профессию.",
+            reply_markup=get_professions_keyboard()
         )
-        await callback.answer("Нужно выбрать предмет")
+        await callback.answer("Нужно выбрать профессию")
         return
 
-    # Сохраняем выбор темы
-    topics[user_id] = topic_key
-    subject_key = subjects[user_id]
+    # Сохраняем выбор лекции
+    lectures[user_id] = lecture_key
+    profession_key = professions[user_id]
 
     # Отправляем статус "печатает..."
     await bot.send_chat_action(chat_id=user_id, action="typing")
 
-    # Генерируем задачу с помощью ИИ
+    # Генерируем лекцию с помощью ИИ
     prompt = [
         {
             "role": "system",
-            "text": "Ты преподаватель, который создаёт интересные учебные задачи. Твоя задача - генерировать задачи по заданному предмету и теме, понятные для школьников и студентов. После формулировки задачи нужно объяснить, где это знание применяется в реальной жизни."
+            "text": "Ты эксперт по профориентации. Создавай информативные и вдохновляющие лекции о разных аспектах профессий для школьников и студентов."
         },
         {
             "role": "user",
-            "text": f"Создай интересную задачу по предмету '{SUBJECTS_TOPICS[subject_key]['name']}' и теме '{SUBJECTS_TOPICS[subject_key]['topics'][topic_key]}'. Формат ответа: 1) Задача с чётко сформулированным вопросом, 2) Практическое применение в реальной жизни (где эти знания используются), 3) Решение задачи с объяснением. Раздели эти части заголовками."
+            "text": f"Создай познавательную лекцию о профессии '{PROFESSIONS_LECTURES[profession_key]['name']}', направление '{PROFESSIONS_LECTURES[profession_key]['lectures'][lecture_key]}'. Лекция должна включать: основные понятия, необходимые навыки, возможности трудоустройства, примеры задач из реальной практики и советы начинающим. Используй эмодзи и форматирование для лучшего восприятия."
         }
     ]
 
@@ -259,24 +258,20 @@ async def select_topic(callback: types.CallbackQuery):
             })
 
         operation = model.run_deferred(formatted_messages)
-        problem_text = operation.wait().text
+        lecture_text = operation.wait().text
 
-        # Сохраняем задачу для пользователя
-        current_problem[user_id] = problem_text
+        # Сохраняем лекцию для пользователя
+        current_lecture[user_id] = lecture_text
 
-        # Создаем клавиатуру для действий с задачей
+        # Создаем клавиатуру для действий с лекцией
         builder = InlineKeyboardBuilder()
         builder.add(types.InlineKeyboardButton(
-            text="🔍 Показать решение",
-            callback_data="show_solution"
+            text="🔄 Другая лекция",
+            callback_data=f"profession_{profession_key}"
         ))
         builder.add(types.InlineKeyboardButton(
-            text="🔄 Новая задача",
-            callback_data=f"topic_{topic_key}"
-        ))
-        builder.add(types.InlineKeyboardButton(
-            text="↩️ К выбору темы",
-            callback_data=f"subject_{subject_key}"
+            text="🎓 Другая профессия",
+            callback_data="career_guidance"
         ))
         builder.add(types.InlineKeyboardButton(
             text="⬅️ В главное меню",
@@ -284,74 +279,22 @@ async def select_topic(callback: types.CallbackQuery):
         ))
         builder.adjust(1)
 
-        # Находим позицию, где начинается раздел с решением
-        solution_pos = problem_text.lower().find("решение")
-
-        # Если нашли раздел с решением, отправляем только условие задачи
-        if solution_pos > -1:
-            await callback.message.answer(
-                problem_text[:solution_pos],
-                parse_mode=ParseMode.MARKDOWN,
-                reply_markup=builder.as_markup()
-            )
-        else:
-            # Если не нашли раздел с решением, отправляем весь текст
-            await callback.message.answer(
-                problem_text,
-                parse_mode=ParseMode.MARKDOWN,
-                reply_markup=builder.as_markup()
-            )
+        # Отправляем лекцию
+        await callback.message.answer(
+            lecture_text,
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=builder.as_markup()
+        )
 
     except Exception as e:
-        logger.error(f"Ошибка при генерации задачи: {e}")
+        logger.error(f"Ошибка при генерации лекции: {e}")
         await callback.message.answer(
-            "Извините, не удалось сгенерировать задачу. Пожалуйста, попробуйте позже.",
-            reply_markup=get_topics_keyboard(subject_key)
+            "Извините, не удалось сгенерировать лекцию. Пожалуйста, попробуйте позже.",
+            reply_markup=get_lectures_keyboard(profession_key)
         )
 
-    await callback.answer("Задача сгенерирована")
+    await callback.answer("Лекция подготовлена")
 
-
-# Обработчик показа решения
-@dp.callback_query(lambda c: c.data == "show_solution")
-async def show_solution(callback: types.CallbackQuery):
-    user_id = callback.from_user.id
-
-    if user_id not in current_problem:
-        await callback.message.answer(
-            "К сожалению, не могу найти решение для этой задачи. Попробуйте сгенерировать новую задачу.",
-            reply_markup=get_subjects_keyboard()
-        )
-        await callback.answer("Решение не найдено")
-        return
-
-    problem_text = current_problem[user_id]
-    solution_pos = problem_text.lower().find("решение")
-
-    if solution_pos > -1:
-        await callback.message.answer(
-            f"*Решение задачи:*\n\n{problem_text[solution_pos:]}",
-            parse_mode=ParseMode.MARKDOWN
-        )
-        await callback.answer("Вот решение задачи")
-    else:
-        await callback.message.answer(
-            "К сожалению, не могу найти решение для этой задачи. Попробуйте сгенерировать новую задачу."
-        )
-        await callback.answer("Решение не найдено")
-
-
-# Возврат в главное меню
-@dp.callback_query(lambda c: c.data == "back_to_main")
-async def back_to_main_menu(callback: types.CallbackQuery):
-    user_id = callback.from_user.id
-    is_active = psychologist_active.get(user_id, False)
-
-    await callback.message.answer(
-        "Вы вернулись в главное меню. Выберите нужную функцию:",
-        reply_markup=get_main_keyboard(is_active)
-    )
-    await callback.answer("Главное меню")
 
 
 # Добавляем обработчик для кнопки с рецептом блинов
