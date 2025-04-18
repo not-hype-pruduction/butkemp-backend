@@ -1,8 +1,13 @@
 import logging
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import os
-from yandex_cloud_ml_sdk import llm  # Импорт SDK для работы с Яндекс ГПТ
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters.command import Command
+from aiogram.enums.parse_mode import ParseMode
+from yandex_cloud_ml_sdk import YCloudML
+from dotenv import load_dotenv
+
+# Загружаем переменные окружения
+load_dotenv()
 
 # Настройка логирования
 logging.basicConfig(
@@ -10,43 +15,58 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Токены доступа (в реальном приложении рекомендуется хранить в .env файле)
+# Токены доступа
 TELEGRAM_TOKEN = os.getenv("TG_TOKEN")
 YANDEX_GPT_API_KEY = os.getenv("YANDEX_API_KEY")
-YANDEX_GPT_FOLDER_ID = os.getenv("YANDEX_FOLDER_ID")  # ID каталога в Яндекс Облаке
+YANDEX_GPT_FOLDER_ID = os.getenv("YANDEX_FOLDER_ID")
 
 # История сообщений для контекста беседы
 user_sessions = {}
 
 # Создание клиента для работы с Яндекс ГПТ
-llm_client = llm.LLMClient(api_key=YANDEX_GPT_API_KEY)
+sdk = YCloudML(
+    folder_id=YANDEX_GPT_FOLDER_ID,
+    auth=YANDEX_GPT_API_KEY
+)
+model = sdk.models.completions('yandexgpt-lite')
+model.configure(
+    temperature=0.6,
+    max_tokens=1500
+)
+
+# Инициализация бота и диспетчера
+bot = Bot(token=TELEGRAM_TOKEN)
+dp = Dispatcher()
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@dp.message(Command("start"))
+async def cmd_start(message: types.Message):
     """Обработка команды /start."""
-    user_id = update.effective_user.id
+    user_id = message.from_user.id
     user_sessions[user_id] = []
 
-    await update.message.reply_text(
+    await message.answer(
         "Привет! Я бот-психолог, готовый выслушать тебя и помочь. "
         "Расскажи мне, что тебя беспокоит?"
     )
 
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@dp.message(Command("help"))
+async def cmd_help(message: types.Message):
     """Обработка команды /help."""
-    await update.message.reply_text(
+    await message.answer(
         "Я бот-психолог, созданный для поддержки и помощи. "
         "Просто напиши мне о своих чувствах, проблемах или ситуациях, "
         "и я постараюсь помочь. Используй /reset чтобы начать разговор заново."
     )
 
 
-async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@dp.message(Command("reset"))
+async def cmd_reset(message: types.Message):
     """Сбросить историю диалога."""
-    user_id = update.effective_user.id
+    user_id = message.from_user.id
     user_sessions[user_id] = []
-    await update.message.reply_text("История разговора сброшена. Начнем заново?")
+    await message.answer("История разговора сброшена. Начнем заново?")
 
 
 def get_yandex_gpt_response(messages):
@@ -56,30 +76,25 @@ def get_yandex_gpt_response(messages):
         formatted_messages = []
         for msg in messages:
             formatted_messages.append({
-                "role": msg["role"],
-                "text": msg["text"]
+                'role': msg["role"],
+                'text': msg["text"]
             })
 
-        # Создание запроса к модели
-        request = llm.CompletionRequest(
-            model_uri=f"gpt://{YANDEX_GPT_FOLDER_ID}/yandexgpt-lite",
-            messages=formatted_messages,
-            temperature=0.6,
-            max_tokens=1500
-        )
+        # Выполнение запроса к модели
+        operation = model.run_deferred(formatted_messages)
+        result = operation.wait()
+        return result.text
 
-        # Выполнение запроса
-        response = llm_client.completion(request)
-        return response.result.alternatives[0].message.text
     except Exception as e:
         logger.error(f"Ошибка при обращении к Яндекс ГПТ: {e}")
         return "Извините, у меня возникли проблемы с получением ответа. Попробуйте еще раз позже."
 
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@dp.message()
+async def process_message(message: types.Message):
     """Обработка входящих сообщений."""
-    user_id = update.effective_user.id
-    user_message = update.message.text
+    user_id = message.from_user.id
+    user_message = message.text
 
     # Инициализируем сессию, если это первое сообщение
     if user_id not in user_sessions:
@@ -101,7 +116,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         user_sessions[user_id] = [user_sessions[user_id][0]] + user_sessions[user_id][-9:]
 
     # Отправляем "печатает..." статус
-    await update.message.chat.send_action(action="typing")
+    await bot.send_chat_action(chat_id=user_id, action="typing")
 
     # Получаем ответ от Яндекс ГПТ
     response = get_yandex_gpt_response(user_sessions[user_id])
@@ -110,24 +125,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     user_sessions[user_id].append({"role": "assistant", "text": response})
 
     # Отправляем ответ пользователю
-    await update.message.reply_text(response)
+    await message.answer(response)
 
 
-def main() -> None:
+async def main():
     """Запуск бота."""
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
-
-    # Регистрация обработчиков команд
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("reset", reset))
-
-    # Регистрация обработчика сообщений
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    # Запуск бота
-    application.run_polling()
+    # Удаляем все обновления, которые могли накопиться
+    await bot.delete_webhook(drop_pending_updates=True)
+    # Запускаем бота в режиме long polling
+    await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+
+    asyncio.run(main())
