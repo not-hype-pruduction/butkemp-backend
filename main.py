@@ -11,9 +11,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Токены доступа (в реальном приложении рекомендуется хранить в .env файле)
-TELEGRAM_TOKEN = "ВАШ_ТЕЛЕГРАМ_ТОКЕН"
-YANDEX_GPT_API_KEY = "ВАШ_ЯНДЕКС_GPT_API_KEY"
-YANDEX_GPT_FOLDER_ID = "ВАШ_FOLDER_ID"  # ID каталога в Яндекс Облаке
+TELEGRAM_TOKEN = os.getenv("TG_TOKEN")
+YANDEX_GPT_API_KEY = os.getenv("YANDEX_API_KEY")
+YANDEX_GPT_FOLDER_ID = os.getenv("YANDEX_FOLDER_ID")  # ID каталога в Яндекс Облаке
 
 # История сообщений для контекста беседы
 user_sessions = {}
