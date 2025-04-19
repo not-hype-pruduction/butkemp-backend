@@ -108,6 +108,7 @@ async def get_user_mascots(session: AsyncSession, user_id: int) -> List[Mascot]:
     result = await session.execute(select(Mascot).where(Mascot.user_id == user_id))
     return result.scalars().all()
 
+
 async def get_user_rating(session: AsyncSession, user_id: int) -> Dict[str, Any]:
     """Gets rating info for a user"""
     # Get user information
@@ -126,10 +127,23 @@ async def get_user_rating(session: AsyncSession, user_id: int) -> Dict[str, Any]
     if not rating:
         return None
 
+    # Формирование полного имени с проверкой значений
+    full_name = ""
+    if user and user.first_name:
+        full_name += user.first_name
+    if user and user.last_name:
+        full_name += f" {user.last_name}" if full_name else user.last_name
+
+    # Если полное имя пустое, используем username или ID
+    if not full_name and user and user.username:
+        full_name = user.username
+    elif not full_name:
+        full_name = f"Игрок {user_id}"
+
     return {
         "user_id": user_id,
         "username": user.username if user else None,
-        "full_name": f"{user.first_name} {user.last_name}".strip() if user else None,
+        "full_name": full_name,
         "total_mascots": rating.total_mascots,
         "legendary_count": rating.legendary_count,
         "epic_count": rating.epic_count,
@@ -139,7 +153,6 @@ async def get_user_rating(session: AsyncSession, user_id: int) -> Dict[str, Any]
         "rating_score": rating.rating_score,
         "rating_position": position_result
     }
-
 async def get_top_users(session: AsyncSession, limit: int = 10) -> List[Dict[str, Any]]:
     """Gets top users by rating"""
     result = await session.execute(
