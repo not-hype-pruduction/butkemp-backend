@@ -44,22 +44,33 @@ async def add_mascot(session: AsyncSession, user_id: int, mascot_data: Dict[str,
         mascot_data=mascot_data
     )
     session.add(mascot)
+    await session.flush()  # Чтобы получить ID маскота
+
+    # Рассчитываем общий score редкости для этого маскота
+    rarities = [
+        mascot_data.get("hat", {}).get("rarity", "обычный"),
+        mascot_data.get("body", {}).get("rarity", "обычный"),
+        mascot_data.get("stroke", {}).get("rarity", "обычный")
+    ]
+
+    current_mascot_score = sum(RARITY_WEIGHTS.get(rarity, 0) for rarity in rarities)
 
     # Update user's rating
     rating_result = await session.execute(select(UserRating).where(UserRating.user_id == user_id))
     rating = rating_result.scalars().first()
 
     if not rating:
-        # Create new rating for user with explicit default values
+        # Create new rating for user
         rating = UserRating(
             user_id=user_id,
-            total_mascots=0,  # Explicitly set defaults
+            total_mascots=0,
             legendary_count=0,
             epic_count=0,
             rare_count=0,
             uncommon_count=0,
             common_count=0,
-            rating_score=0.0
+            rating_score=0.0,
+            max_rarity_score=0.0
         )
         session.add(rating)
 
@@ -67,12 +78,6 @@ async def add_mascot(session: AsyncSession, user_id: int, mascot_data: Dict[str,
     rating.total_mascots += 1
 
     # Count mascot rarities and update counts
-    rarities = [
-        mascot_data.get("hat", {}).get("rarity", ""),
-        mascot_data.get("body", {}).get("rarity", ""),
-        mascot_data.get("stroke", {}).get("rarity", "")
-    ]
-
     for rarity in rarities:
         if rarity == "легендарный":
             rating.legendary_count += 1
@@ -85,22 +90,24 @@ async def add_mascot(session: AsyncSession, user_id: int, mascot_data: Dict[str,
         elif rarity == "обычный":
             rating.common_count += 1
 
-    # Calculate rating score
+    # Calculate rating score (оставляем для совместимости)
     rating.rating_score = (
-        rating.legendary_count * RARITY_WEIGHTS["легендарный"] +
-        rating.epic_count * RARITY_WEIGHTS["эпический"] +
-        rating.rare_count * RARITY_WEIGHTS["редкий"] +
-        rating.uncommon_count * RARITY_WEIGHTS["необычный"] +
-        rating.common_count * RARITY_WEIGHTS["обычный"]
+            rating.legendary_count * RARITY_WEIGHTS["легендарный"] +
+            rating.epic_count * RARITY_WEIGHTS["эпический"] +
+            rating.rare_count * RARITY_WEIGHTS["редкий"] +
+            rating.uncommon_count * RARITY_WEIGHTS["необычный"] +
+            rating.common_count * RARITY_WEIGHTS["обычный"]
     )
+
+    # Обновляем максимальный скор редкости, если текущий маскот более редкий
+    if current_mascot_score > rating.max_rarity_score:
+        rating.max_rarity_score = current_mascot_score
+        rating.rarest_mascot_id = mascot.id
 
     rating.last_updated = datetime.utcnow()
 
-    # Commit changes
     await session.commit()
-
     return mascot
-
 
 async def get_user_mascots(session: AsyncSession, user_id: int) -> List[Mascot]:
     """Gets all mascots for a user"""

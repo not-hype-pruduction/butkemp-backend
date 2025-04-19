@@ -57,7 +57,13 @@ class UserRating(Base):
     uncommon_count = Column(Integer, default=0)
     common_count = Column(Integer, default=0)
     rating_score = Column(Float, default=0.0)
+
+    # Новые поля для отслеживания самого редкого маскота
+    max_rarity_score = Column(Float, default=0.0)  # Максимальный скор редкости отдельного маскота
+    rarest_mascot_id = Column(Integer, ForeignKey("mascots.id"), nullable=True)  # ID самого редкого маскота
+
     last_updated = Column(DateTime, default=datetime.utcnow)
 
     # Отношения
     user = relationship("User", back_populates="rating")
+    rarest_mascot = relationship("Mascot", foreign_keys=[rarest_mascot_id])
