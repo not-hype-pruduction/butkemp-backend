@@ -55,9 +55,13 @@ async def add_mascot(session: AsyncSession, user_id: int, mascot_data: Dict[str,
 
     current_mascot_score = sum(RARITY_WEIGHTS.get(rarity, 0) for rarity in rarities)
 
-    # Update user's rating
-    rating_result = await session.execute(select(UserRating).where(UserRating.user_id == user_id))
-    rating = rating_result.scalars().first()
+    # Обновляем максимальный скор редкости, если текущий маскот более редкий
+    if current_mascot_score > rating.max_rarity_score:
+        rating.max_rarity_score = current_mascot_score
+        rating.rarest_mascot_id = mascot.id
+
+        # Используем только максимальный скор как рейтинг
+        rating.rating_score = current_mascot_score
 
     if not rating:
         # Create new rating for user
