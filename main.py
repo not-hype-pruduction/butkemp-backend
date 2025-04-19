@@ -4,6 +4,7 @@ from aiogram import Bot, Dispatcher
 
 from config import TELEGRAM_TOKEN, configure_logging
 from handlers import register_all_handlers
+from models.database import init_db  # Import the init_db function
 
 # Настройка логирования
 configure_logging()
@@ -16,6 +17,11 @@ dp = Dispatcher()
 
 async def main():
     """Запуск бота"""
+    # Initialize the database first
+    logger.info("Initializing database...")
+    await init_db()
+    logger.info("Database initialized successfully")
+
     # Удаляем все обновления, которые могли накопиться
     await bot.delete_webhook(drop_pending_updates=True)
 

@@ -12,10 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keyboards import get_main_keyboard
 from config import MASCOT_SVG_TEMPLATE_PATH
-from db import get_session
+from models.database import get_session_ctx
 from models.repository import (
-    save_mascot, get_user_mascots, get_user_rating,
-    get_top_users, get_user_position
+    add_mascot as save_mascot,
+    get_user_mascots,
+    get_user_rating,
+    get_top_users,
+    get_user_position
 )
 
 # Импорт функций из скрипта generate_blin.py
@@ -70,7 +73,7 @@ async def generate_mascot(callback: CallbackQuery):
 
         # Сохраняем маскота в базу данных
         user_id = callback.from_user.id
-        async with get_session() as session:
+        async with await get_session_ctx() as session:
             mascot = await save_mascot(session, user_id, mascot_info)
 
         # Конвертируем SVG в PNG
@@ -118,7 +121,7 @@ async def show_collection(callback: CallbackQuery):
     """Показывает коллекцию маскотов пользователя"""
     user_id = callback.from_user.id
 
-    async with get_session() as session:
+    async with await get_session_ctx() as session:
         # Получаем маскотов пользователя из БД
         mascots = await get_user_mascots(session, user_id)
 
@@ -166,7 +169,7 @@ async def show_my_rating(callback: CallbackQuery):
     """Показывает рейтинг пользователя"""
     user_id = callback.from_user.id
 
-    async with get_session() as session:
+    async with await get_session_ctx() as session:
         # Получаем рейтинг пользователя
         user_rating = await get_user_rating(session, user_id)
 
@@ -212,7 +215,7 @@ async def show_my_rating(callback: CallbackQuery):
 @router.callback_query(F.data == "top_players")
 async def show_top_players(callback: CallbackQuery):
     """Показывает рейтинг топ игроков"""
-    async with get_session() as session:
+    async with await get_session_ctx() as session:
         # Получаем топ-10 пользователей
         top_users = await get_top_users(session, limit=10)
 

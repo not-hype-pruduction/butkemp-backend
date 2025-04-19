@@ -1,12 +1,13 @@
-from sqlalchemy import select, func, desc, update
+from sqlalchemy import select, func, desc, update, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from .models import User, Mascot, UserRating
+from .database import async_session
 
-# Вес для расчёта рейтинга
+# Weight for calculating ratings
 RARITY_WEIGHTS = {
     "легендарный": 100,
     "эпический": 40,
@@ -16,129 +17,143 @@ RARITY_WEIGHTS = {
 }
 
 
-async def get_or_create_user(session: AsyncSession, user_id: int, username: str = None,
-                             first_name: str = None, last_name: str = None) -> User:
-    """Получает или создаёт пользователя в БД"""
-    result = await session.execute(select(User).where(User.user_id == user_id))
-    user = result.scalars().first()
+async def add_mascot(session: AsyncSession, user_id: int, mascot_data: Dict[str, Any]) -> Mascot:
+    """Adds a new mascot to user's collection and updates their rating"""
+
+    # Check if user exists, create if not
+    user_result = await session.execute(select(User).where(User.user_id == user_id))
+    user = user_result.scalars().first()
 
     if not user:
-        user = User(
-            user_id=user_id,
-            username=username,
-            first_name=first_name,
-            last_name=last_name
-        )
+        # Create new user
+        user = User(user_id=user_id)
         session.add(user)
         await session.flush()
 
-        # Создаем запись рейтинга для нового пользователя
-        user_rating = UserRating(user_id=user_id)
-        session.add(user_rating)
-        await session.flush()
-
-    return user
-
-
-async def add_mascot(session: AsyncSession, user_id: int, mascot_info: Dict[str, Any]) -> Mascot:
-    """Добавляет маскота в БД и обновляет рейтинг пользователя"""
-    # Получаем пользователя
-    user = await get_or_create_user(session, user_id)
-
-    # Расчитываем индекс редкости для сортировки
-    rarity_values = [
-        RARITY_WEIGHTS[mascot_info["hat"]["rarity"]],
-        RARITY_WEIGHTS[mascot_info["body"]["rarity"]],
-        RARITY_WEIGHTS[mascot_info["stroke"]["rarity"]]
-    ]
-    rarity_index = sum(rarity_values)
-
-    # Создаем запись о маскоте
+    # Create mascot
     mascot = Mascot(
         user_id=user_id,
-        hat_name=mascot_info["hat"]["name"],
-        hat_rarity=mascot_info["hat"]["rarity"],
-        hat_color=mascot_info["hat"]["color"],
-        body_rarity=mascot_info["body"]["rarity"],
-        body_color=mascot_info["body"]["color"],
-        stroke_rarity=mascot_info["stroke"]["rarity"],
-        stroke_color=mascot_info["stroke"]["color"],
-        rarity_index=rarity_index,
-        mascot_data=mascot_info
+        hat_name=mascot_data.get("hat", {}).get("name", ""),
+        hat_rarity=mascot_data.get("hat", {}).get("rarity", "обычный"),
+        hat_color=mascot_data.get("hat", {}).get("color", "#FFFFFF"),
+        body_rarity=mascot_data.get("body", {}).get("rarity", "обычный"),
+        body_color=mascot_data.get("body", {}).get("color", "#FFFFFF"),
+        stroke_rarity=mascot_data.get("stroke", {}).get("rarity", "обычный"),
+        stroke_color=mascot_data.get("stroke", {}).get("color", "#FFFFFF"),
+        rarity_index=mascot_data.get("rarity_index", 0.0),
+        mascot_data=mascot_data
     )
     session.add(mascot)
-    await session.flush()
 
-    # Обновляем рейтинг пользователя
-    await update_user_rating(session, user_id)
+    # Update user's rating
+    rating_result = await session.execute(select(UserRating).where(UserRating.user_id == user_id))
+    rating = rating_result.scalars().first()
+
+    if not rating:
+        # Create new rating for user with explicit default values
+        rating = UserRating(
+            user_id=user_id,
+            total_mascots=0,  # Explicitly set defaults
+            legendary_count=0,
+            epic_count=0,
+            rare_count=0,
+            uncommon_count=0,
+            common_count=0,
+            rating_score=0.0
+        )
+        session.add(rating)
+
+    # Update mascot counts
+    rating.total_mascots += 1
+
+    # Count mascot rarities and update counts
+    rarities = [
+        mascot_data.get("hat", {}).get("rarity", ""),
+        mascot_data.get("body", {}).get("rarity", ""),
+        mascot_data.get("stroke", {}).get("rarity", "")
+    ]
+
+    for rarity in rarities:
+        if rarity == "легендарный":
+            rating.legendary_count += 1
+        elif rarity == "эпический":
+            rating.epic_count += 1
+        elif rarity == "редкий":
+            rating.rare_count += 1
+        elif rarity == "необычный":
+            rating.uncommon_count += 1
+        elif rarity == "обычный":
+            rating.common_count += 1
+
+    # Calculate rating score
+    rating.rating_score = (
+        rating.legendary_count * RARITY_WEIGHTS["легендарный"] +
+        rating.epic_count * RARITY_WEIGHTS["эпический"] +
+        rating.rare_count * RARITY_WEIGHTS["редкий"] +
+        rating.uncommon_count * RARITY_WEIGHTS["необычный"] +
+        rating.common_count * RARITY_WEIGHTS["обычный"]
+    )
+
+    rating.last_updated = datetime.utcnow()
+
+    # Commit changes
+    await session.commit()
 
     return mascot
 
 
-async def update_user_rating(session: AsyncSession, user_id: int) -> None:
-    """Обновляет рейтинг пользователя на основе всех его маскотов"""
-    # Получаем все маскоты пользователя
-    mascots_query = await session.execute(select(Mascot).filter(Mascot.user_id == user_id))
-    mascots = mascots_query.scalars().all()
+async def get_user_mascots(session: AsyncSession, user_id: int) -> List[Mascot]:
+    """Gets all mascots for a user"""
+    result = await session.execute(select(Mascot).where(Mascot.user_id == user_id))
+    return result.scalars().all()
 
-    # Считаем количество маскотов каждой редкости
-    rarity_counts = {
-        "легендарный": 0,
-        "эпический": 0,
-        "редкий": 0,
-        "необычный": 0,
-        "обычный": 0
+async def get_user_rating(session: AsyncSession, user_id: int) -> Dict[str, Any]:
+    """Gets rating info for a user"""
+    # Get user information
+    user_result = await session.execute(select(User).where(User.user_id == user_id))
+    user = user_result.scalars().first()
+
+    # Get rating information
+    result = await session.execute(
+        select(UserRating).where(UserRating.user_id == user_id)
+    )
+    rating = result.scalars().first()
+
+    # Get position in ranking
+    position_result = await get_user_position(session, user_id)
+
+    if not rating:
+        return None
+
+    return {
+        "user_id": user_id,
+        "username": user.username if user else None,
+        "full_name": f"{user.first_name} {user.last_name}".strip() if user else None,
+        "total_mascots": rating.total_mascots,
+        "legendary_count": rating.legendary_count,
+        "epic_count": rating.epic_count,
+        "rare_count": rating.rare_count,
+        "uncommon_count": rating.uncommon_count,
+        "common_count": rating.common_count,
+        "rating_score": rating.rating_score,
+        "rating_position": position_result
     }
 
-    for mascot in mascots:
-        rarity_counts[mascot.hat_rarity] += 1
-        rarity_counts[mascot.body_rarity] += 1
-        rarity_counts[mascot.stroke_rarity] += 1
-
-    # Рассчитываем рейтинг
-    rating_score = (
-            rarity_counts["легендарный"] * RARITY_WEIGHTS["легендарный"] +
-            rarity_counts["эпический"] * RARITY_WEIGHTS["эпический"] +
-            rarity_counts["редкий"] * RARITY_WEIGHTS["редкий"] +
-            rarity_counts["необычный"] * RARITY_WEIGHTS["необычный"] +
-            rarity_counts["обычный"] * RARITY_WEIGHTS["обычный"]
-    )
-
-    # Обновляем рейтинг в БД
-    await session.execute(
-        update(UserRating)
-        .where(UserRating.user_id == user_id)
-        .values(
-            total_mascots=len(mascots),
-            legendary_count=rarity_counts["легендарный"],
-            epic_count=rarity_counts["эпический"],
-            rare_count=rarity_counts["редкий"],
-            uncommon_count=rarity_counts["необычный"],
-            common_count=rarity_counts["обычный"],
-            rating_score=rating_score,
-            last_updated=datetime.utcnow()
-        )
-    )
-    await session.flush()
-
-
 async def get_top_users(session: AsyncSession, limit: int = 10) -> List[Dict[str, Any]]:
-    """Получает топ пользователей по рейтингу"""
-    query = (
-        select(User, UserRating)
-        .join(UserRating, User.user_id == UserRating.user_id)
+    """Gets top users by rating"""
+    result = await session.execute(
+        select(UserRating, User)
+        .join(User, UserRating.user_id == User.user_id)
         .order_by(desc(UserRating.rating_score))
         .limit(limit)
     )
 
-    result = await session.execute(query)
     top_users = []
-
-    for user, rating in result:
+    for rating, user in result:
         top_users.append({
             "user_id": user.user_id,
             "username": user.username,
-            "full_name": f"{user.first_name or ''} {user.last_name or ''}".strip(),
+            "full_name": f"{user.first_name} {user.last_name}".strip(),
             "total_mascots": rating.total_mascots,
             "legendary_count": rating.legendary_count,
             "epic_count": rating.epic_count,
@@ -150,78 +165,21 @@ async def get_top_users(session: AsyncSession, limit: int = 10) -> List[Dict[str
 
     return top_users
 
-
-async def get_user_rating(session: AsyncSession, user_id: int) -> Optional[Dict[str, Any]]:
-    """Получает рейтинг конкретного пользователя"""
-    query = (
-        select(User, UserRating)
-        .join(UserRating, User.user_id == UserRating.user_id)
-        .where(User.user_id == user_id)
-    )
-
-    result = await session.execute(query)
-    row = result.first()
-
-    if row:
-        user, rating = row
-        return {
-            "user_id": user.user_id,
-            "username": user.username,
-            "full_name": f"{user.first_name or ''} {user.last_name or ''}".strip(),
-            "total_mascots": rating.total_mascots,
-            "legendary_count": rating.legendary_count,
-            "epic_count": rating.epic_count,
-            "rare_count": rating.rare_count,
-            "uncommon_count": rating.uncommon_count,
-            "common_count": rating.common_count,
-            "rating_score": rating.rating_score,
-            "rating_position": await get_user_position(session, user_id)
-        }
-
-    return None
-
-
 async def get_user_position(session: AsyncSession, user_id: int) -> int:
-    """Определяет текущую позицию пользователя в общем рейтинге"""
-    # Получаем рейтинг пользователя
-    user_rating_query = await session.execute(
+    """Gets user's position in the overall rating"""
+    # Get the user's rating
+    user_rating_result = await session.execute(
         select(UserRating.rating_score).where(UserRating.user_id == user_id)
     )
-    user_rating = user_rating_query.scalar()
+    user_rating = user_rating_result.scalar_one_or_none()
 
     if not user_rating:
         return 0
 
-    # Определяем позицию среди всех пользователей
-    position_query = await session.execute(
+    # Count users with higher rating
+    higher_ratings = await session.execute(
         select(func.count()).where(UserRating.rating_score > user_rating)
     )
-    position = position_query.scalar() + 1
 
-    return position
-
-
-async def get_user_mascots(session: AsyncSession, user_id: int) -> List[Dict[str, Any]]:
-    """Получает все маскоты пользователя, отсортированные по редкости"""
-    query = (
-        select(Mascot)
-        .filter(Mascot.user_id == user_id)
-        .order_by(desc(Mascot.rarity_index), desc(Mascot.created_at))
-    )
-
-    result = await session.execute(query)
-    mascots = result.scalars().all()
-
-    return [
-        {
-            "id": mascot.id,
-            "created_at": mascot.created_at,
-            "hat_name": mascot.hat_name,
-            "hat_rarity": mascot.hat_rarity,
-            "body_rarity": mascot.body_rarity,
-            "stroke_rarity": mascot.stroke_rarity,
-            "rarity_index": mascot.rarity_index,
-            "mascot_data": mascot.mascot_data
-        }
-        for mascot in mascots
-    ]
+    # Position is count of users with higher rating + 1
+    return higher_ratings.scalar() + 1
