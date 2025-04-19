@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from keyboards import get_main_keyboard
@@ -16,9 +16,9 @@ async def career_guidance_menu(callback: CallbackQuery):
     builder = InlineKeyboardBuilder()
 
     for profession in PROFESSIONS_LECTURES.keys():
-        builder.add(F.text(profession, callback_data=f"profession_{profession}"))
+        builder.add(InlineKeyboardButton(text=profession, callback_data=f"profession_{profession}"))
 
-    builder.add(F.text("⬅️ Назад", callback_data="back_to_menu"))
+    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu"))
     builder.adjust(1)  # По одной кнопке в строке
 
     await callback.message.answer(
@@ -42,10 +42,11 @@ async def show_profession_info(callback: CallbackQuery):
     builder = InlineKeyboardBuilder()
 
     for i, lecture in enumerate(PROFESSIONS_LECTURES[profession]):
-        builder.add(F.text(f"📚 {lecture}", callback_data=f"lecture_{i}"))
+        builder.add(InlineKeyboardButton(text=f"📚 {lecture}", callback_data=f"lecture_{i}"))
 
-    builder.add(F.text("⬅️ Назад к профессиям", callback_data="career_guidance"))
-    builder.add(F.text("🏠 В главное меню", callback_data="back_to_menu"))
+    builder.add(InlineKeyboardButton(text="⬅️ Назад к профессиям", callback_data="career_guidance"))
+    builder.add(InlineKeyboardButton(text="🏠 В главное меню", callback_data="back_to_menu"))
+
     builder.adjust(1)  # По одной кнопке в строке
 
     await callback.message.answer(
@@ -86,14 +87,14 @@ async def show_lecture(callback: CallbackQuery):
 
     # Кнопки перехода между лекциями
     if lecture_index > 0:
-        builder.add(F.text("⬅️ Предыдущая", callback_data=f"lecture_{lecture_index - 1}"))
+        builder.add(InlineKeyboardButton(text="⬅️ Предыдущая", callback_data=f"lecture_{lecture_index - 1}"))
 
     if lecture_index < len(PROFESSIONS_LECTURES[profession]) - 1:
-        builder.add(F.text("➡️ Следующая", callback_data=f"lecture_{lecture_index + 1}"))
+        builder.add(InlineKeyboardButton(text="➡️ Следующая", callback_data=f"lecture_{lecture_index + 1}"))
 
-    builder.add(F.text("⬅️ К списку лекций", callback_data=f"profession_{profession}"))
-    builder.add(F.text("🏠 В главное меню", callback_data="back_to_menu"))
-    builder.adjust(2, 1, 1)  # Форматируем кнопки
+    builder.add(InlineKeyboardButton(text="⬅️ К списку лекций", callback_data=f"profession_{profession}"))
+    builder.add(InlineKeyboardButton(text="🏠 В главное меню", callback_data="back_to_menu"))
+    builder.adjust(2, 1, 1)
 
     await callback.message.answer(lecture_content, reply_markup=builder.as_markup())
     await callback.answer()
