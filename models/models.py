@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, J
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from sqlalchemy import BigInteger  # Add this import
 
 Base = declarative_base()
 
@@ -11,7 +12,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, unique=True, nullable=False)
+    user_id = Column(BigInteger, unique=True, nullable=False)
     username = Column(String, nullable=True)
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
@@ -26,7 +27,7 @@ class Mascot(Base):
     __tablename__ = "mascots"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.user_id"))
+    user_id = Column(BigInteger, ForeignKey("users.user_id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     hat_name = Column(String, nullable=False)
     hat_rarity = Column(String, nullable=False)
@@ -49,7 +50,7 @@ class UserRating(Base):
     __tablename__ = "user_ratings"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.user_id"), unique=True)
+    user_id = Column(BigInteger, ForeignKey("users.user_id"), unique=True)
     total_mascots = Column(Integer, default=0)
     legendary_count = Column(Integer, default=0)
     epic_count = Column(Integer, default=0)
