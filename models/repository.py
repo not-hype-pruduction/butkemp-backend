@@ -154,20 +154,43 @@ async def get_user_rating(session: AsyncSession, user_id: int) -> Dict[str, Any]
         "rating_position": position_result
     }
 async def get_top_users(session: AsyncSession, limit: int = 10) -> List[Dict[str, Any]]:
-    """Gets top users by rating"""
+    """Gets top users by rating score"""
     result = await session.execute(
-        select(UserRating, User)
+        select(
+            UserRating,
+            User.username,
+            User.first_name,
+            User.last_name
+        )
         .join(User, UserRating.user_id == User.user_id)
         .order_by(desc(UserRating.rating_score))
         .limit(limit)
     )
 
     top_users = []
-    for rating, user in result:
+    for row in result:
+        rating = row.UserRating
+        username = row.username
+        first_name = row.first_name
+        last_name = row.last_name
+
+        # Формирование полного имени с проверкой значений
+        full_name = ""
+        if first_name:
+            full_name += first_name
+        if last_name:
+            full_name += f" {last_name}" if full_name else last_name
+
+        # Если полное имя пустое, используем username или ID
+        if not full_name and username:
+            full_name = username
+        elif not full_name:
+            full_name = f"Игрок {rating.user_id}"
+
         top_users.append({
-            "user_id": user.user_id,
-            "username": user.username,
-            "full_name": f"{user.first_name} {user.last_name}".strip(),
+            "user_id": rating.user_id,
+            "username": username,
+            "full_name": full_name,
             "total_mascots": rating.total_mascots,
             "legendary_count": rating.legendary_count,
             "epic_count": rating.epic_count,
@@ -178,7 +201,6 @@ async def get_top_users(session: AsyncSession, limit: int = 10) -> List[Dict[str
         })
 
     return top_users
-
 async def get_user_position(session: AsyncSession, user_id: int) -> int:
     """Gets user's position in the overall rating"""
     # Get the user's rating
